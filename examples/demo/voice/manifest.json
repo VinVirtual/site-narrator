@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "voice": "af_heart",
+  "speed": 0.96,
+  "lang": "en-us",
+  "bitrate": 32,
+  "notice": "Computer-generated voice (Kokoro text-to-speech).",
+  "count": 5,
+  "totalBytes": 208667,
+  "totalSeconds": 52.17,
+  "lines": {
+    "6112f80fa1": {
+      "file": "6112f80fa1.mp3",
+      "seconds": 9.53,
+      "bytes": 38139,
+      "take": "a80d3cb1b8",
+      "level": 0.0767,
+      "text": "This page has a voice, and the voice was recorded before you arrived. Nothing is generated while you listen, and nothing you do here is sent to a speech service."
+    },
+    "6567ae20be": {
+      "file": "6567ae20be.mp3",
+      "seconds": 11.47,
+      "bytes": 45871,
+      "take": "8ebc1e8cd5",
+      "level": 0.076,
+      "text": "Each paragraph was turned into a small sound file on the author's own computer. The file is named after a fingerprint of the paragraph's text, so the page can find it without keeping a list."
+    },
+    "2502044aa5": {
+      "file": "2502044aa5.mp3",
+      "seconds": 10.66,
+      "bytes": 42632,
+      "take": "8e808246bc",
+      "level": 0.0757,
+      "text": "If a paragraph is edited, its fingerprint changes and the old file no longer matches. The paragraph stays silent until it is recorded again, which takes one command."
+    },
+    "20712d318c": {
+      "file": "20712d318c.mp3",
+      "seconds": 11.44,
+      "bytes": 45767,
+      "take": "e037a1dcbb",
+      "level": 0.0768,
+      "text": "Some things are written one way and said another. Here the recorder spells out CSS, reads 20 °C as a temperature, and knows that 3 × 4 = 12."
+    },
+    "31488ef396": {
+      "file": "31488ef396.mp3",
+      "seconds": 9.06,
+      "bytes": 36258,
+      "take": "4c25ceddad",
+      "level": 0.0801,
+      "text": "The voice is computer-generated. It comes from Kokoro, an open text-to-speech model, and you can switch it off with the button at the top of the page."
+    }
+  }
+}

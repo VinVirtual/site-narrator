@@ -1,0 +1,303 @@
+/* site-narrator demo: a reading-room page. Ink on warm paper; vermilion is used only for "being read". */
+:root {
+  --paper: oklch(96.5% 0.012 85);
+  --paper-deep: oklch(92.5% 0.018 85);
+  --ink: oklch(22% 0.02 60);
+  --ink-soft: oklch(46% 0.02 60);
+  --rule: oklch(80% 0.02 80);
+  --voice: oklch(58% 0.19 32);
+  --voice-wash: oklch(58% 0.19 32 / 0.09);
+
+  /* No web fonts on purpose: the demo makes no request beyond its own folder. */
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  --text-body: clamp(1.12rem, 1rem + 0.5vw, 1.32rem);
+  --text-title: clamp(2.6rem, 1.2rem + 7vw, 6rem);
+  --gutter: clamp(1rem, 4vw, 3.5rem);
+  --measure: 34rem;
+  --fast: 160ms;
+  --slow: 420ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: oklch(19% 0.012 60);
+    --paper-deep: oklch(24% 0.014 60);
+    --ink: oklch(92% 0.015 85);
+    --ink-soft: oklch(70% 0.02 80);
+    --rule: oklch(36% 0.015 60);
+    --voice: oklch(72% 0.17 40);
+    --voice-wash: oklch(72% 0.17 40 / 0.12);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.masthead {
+  padding: clamp(2.5rem, 8vw, 6rem) var(--gutter) 2.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead__label,
+.desk__status,
+.btn,
+.passage::before {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.masthead__label {
+  margin: 0 0 1.5rem;
+  color: var(--ink-soft);
+}
+
+h1 {
+  margin: 0;
+  max-width: 11ch;
+  font-size: var(--text-title);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+h1 em {
+  color: var(--voice);
+}
+
+.masthead__lede {
+  max-width: 30rem;
+  margin: 1.75rem 0 0 auto;
+  color: var(--ink-soft);
+}
+
+/* The control desk stays in view while the page reads. */
+.desk {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.6rem;
+  padding: 0.7rem var(--gutter);
+  background: color-mix(in oklch, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.desk__status {
+  flex: 1 1 12rem;
+  margin: 0;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.btn {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    transform var(--fast) var(--ease),
+    background-color var(--fast) linear,
+    color var(--fast) linear,
+    opacity var(--fast) linear;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--voice);
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.btn--ink {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.btn--ink:hover:not(:disabled) {
+  background: var(--voice);
+  border-color: var(--voice);
+}
+
+.btn--switch[aria-pressed='false'] {
+  border-style: dashed;
+  color: var(--ink-soft);
+}
+
+/* Loudness meter: seven bars driven by --level (0 to 1), set from narrator.level(). */
+.meter {
+  --level: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 1.6rem;
+  margin-left: 0.4rem;
+}
+
+.meter span {
+  width: 3px;
+  height: 100%;
+  background: var(--voice);
+  transform: scaleY(calc(0.08 + var(--level) * var(--reach)));
+  transition: transform 90ms linear;
+}
+
+.meter span:nth-child(1),
+.meter span:nth-child(7) {
+  --reach: 0.35;
+}
+.meter span:nth-child(2),
+.meter span:nth-child(6) {
+  --reach: 0.6;
+}
+.meter span:nth-child(3),
+.meter span:nth-child(5) {
+  --reach: 0.85;
+}
+.meter span:nth-child(4) {
+  --reach: 1;
+}
+
+.column {
+  margin: 0;
+  padding: clamp(1.5rem, 5vw, 4rem) var(--gutter) 3rem;
+  list-style: none;
+  counter-reset: passage;
+}
+
+.passage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 1fr) minmax(0, var(--measure)) minmax(0, 1.4fr);
+  align-items: start;
+  gap: 0 1.5rem;
+  padding: 1.6rem 0 1.6rem 1rem;
+  border-top: 1px solid var(--rule);
+  counter-increment: passage;
+  transition: opacity var(--slow) var(--ease);
+}
+
+.passage:nth-child(even) {
+  grid-template-columns: minmax(3.5rem, 2fr) minmax(0, var(--measure)) minmax(0, 0.4fr);
+}
+
+.passage::before {
+  content: counter(passage, decimal-leading-zero);
+  padding-top: 0.5rem;
+  color: var(--ink-soft);
+  transition: color var(--fast) linear;
+}
+
+/* The mark that shows which paragraph is being read: a bar that grows down the left edge, and a wash. */
+.passage::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--voice);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--slow) var(--ease);
+}
+
+.passage p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.passage .btn--listen {
+  justify-self: start;
+  margin-top: 0.25rem;
+}
+
+.column.is-reading .passage:not(.is-spoken) {
+  opacity: 0.42;
+}
+
+.passage.is-spoken {
+  background: linear-gradient(90deg, var(--voice-wash), transparent 70%);
+}
+
+.passage.is-spoken::after {
+  transform: scaleY(1);
+}
+
+.passage.is-spoken::before {
+  color: var(--voice);
+}
+
+.colophon {
+  padding: 1.5rem var(--gutter) 3rem;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+.colophon p {
+  max-width: var(--measure);
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .passage,
+  .passage:nth-child(even) {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+  }
+
+  .passage .btn--listen {
+    grid-column: 2;
+    margin-top: 0.9rem;
+  }
+
+  .masthead__lede {
+    margin-left: 0;
+  }
+
+  .desk__status {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+  }
+}

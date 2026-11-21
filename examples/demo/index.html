@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:" />
+    <title>A page that reads itself: site-narrator demo</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="demo.css" />
+    <script type="module" src="demo.js"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <p class="masthead__label">site-narrator / demo</p>
+      <h1 id="title">A page that reads <em>itself</em></h1>
+      <p class="masthead__lede">Five paragraphs, five small sound files, no speech service. Press Listen on any paragraph, or hear them all in order.</p>
+    </header>
+
+    <div class="desk" role="group" aria-label="Narration controls">
+      <button type="button" class="btn btn--ink" data-action="all">Listen to all</button>
+      <button type="button" class="btn" data-action="stop" disabled>Stop</button>
+      <button type="button" class="btn btn--switch" data-action="voice" aria-pressed="true">Voice on</button>
+      <div class="meter" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="desk__status" role="status" aria-live="polite">Ready.</p>
+    </div>
+
+    <main aria-labelledby="title">
+      <ol class="column">
+        <li class="passage">
+          <p data-narrate>This page has a voice, and the voice was recorded before you arrived. Nothing is generated while you listen, and nothing you do here is sent to a speech service.</p>
+          <button type="button" class="btn btn--listen" data-action="one">Listen</button>
+        </li>
+        <li class="passage">
+          <p data-narrate>Each paragraph was turned into a small sound file on the author's own computer. The file is named after a fingerprint of the paragraph's text, so the page can find it without keeping a list.</p>
+          <button type="button" class="btn btn--listen" data-action="one">Listen</button>
+        </li>
+        <li class="passage">
+          <p data-narrate>If a paragraph is edited, its fingerprint changes and the old file no longer matches. The paragraph stays silent until it is recorded again, which takes one command.</p>
+          <button type="button" class="btn btn--listen" data-action="one">Listen</button>
+        </li>
+        <li class="passage">
+          <p data-narrate>Some things are written one way and said another. Here the recorder spells out CSS, reads 20 °C as a temperature, and knows that 3 × 4 = 12.</p>
+          <button type="button" class="btn btn--listen" data-action="one">Listen</button>
+        </li>
+        <li class="passage">
+          <p data-narrate>The voice is computer-generated. It comes from Kokoro, an open text-to-speech model, and you can switch it off with the button at the top of the page.</p>
+          <button type="button" class="btn btn--listen" data-action="one">Listen</button>
+        </li>
+      </ol>
+    </main>
+
+    <footer class="colophon">
+      <p>The voice on this page is computer-generated (Kokoro text-to-speech). With the voice off, the highlight still moves through the paragraphs at reading speed.</p>
+    </footer>
+  </body>
+</html>
