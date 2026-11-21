@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Fixture</title>
+    <style>p[data-narrate] { color: red; }</style>
+    <script>const ignored = '<p data-narrate>not a line</p>';</script>
+  </head>
+  <body>
+    <!-- <p data-narrate>commented out</p> -->
+    <main>
+      <p data-narrate>
+        Tea &amp;   toast,
+        <em>&ldquo;quoted&rdquo;</em> and&nbsp;plain.
+      </p>
+      <p>Not marked, so not collected.</p>
+      <div data-narrate="intro" class="note">Outer <div>inner <b>bold</b></div> tail &#8594; end &#x2014; done</div>
+      <img data-narrate src="x.png" alt="no text" />
+      <h2 class="x" data-narrate>A heading</h2>
+    </main>
+  </body>
+</html>
