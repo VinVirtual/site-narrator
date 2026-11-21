@@ -1,23 +1,37 @@
 // Command-line arguments and the project file (narrate.json).
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 export const CONFIG_NAME = 'narrate.json';
 export const DEFAULTS = Object.freeze({ out: 'voice', voice: 'af_heart', speed: 1, lang: 'en-us', bitrate: 32, workers: 2, attribute: 'data-narrate', say: {} });
-const SWITCHES = new Set(['dry-run', 'force', 'keep-stale', 'json', 'help']);
+export const SWITCHES = Object.freeze(['adopt', 'dry-run', 'force', 'help', 'json', 'keep-stale']);
+export const VALUE_FLAGS = Object.freeze(['attribute', 'bitrate', 'encoder', 'lang', 'out', 'out-file', 'port', 'source', 'speed', 'voice', 'workers']);
 const KNOWN = new Set(['source', 'out', 'voice', 'speed', 'lang', 'bitrate', 'workers', 'attribute', 'say', 'limits']);
+const flagList = () => [...SWITCHES, ...VALUE_FLAGS].sort().map((name) => `--${name}`).join(', ');
 
-/** Splits arguments into positional words and --flags. `--name value`, `--name=value` and switches are understood. */
+/**
+ * Splits arguments into positional words and --flags. A switch never takes the next word; a value flag
+ * takes it, or its value after "=". An unknown flag is an error, so a typing mistake cannot change what
+ * a command does.
+ */
 export function parseArgs(argv) {
   const rest = [];
   const flags = {};
   for (let index = 0; index < argv.length; index += 1) {
     const word = argv[index];
-    if (!word.startsWith('--')) rest.push(word);
-    else if (word.includes('=')) flags[word.slice(2, word.indexOf('='))] = word.slice(word.indexOf('=') + 1);
-    else if (SWITCHES.has(word.slice(2))) flags[word.slice(2)] = true;
-    else if (index + 1 < argv.length) flags[word.slice(2)] = argv[(index += 1)];
-    else throw new Error(`${word} needs a value`);
+    if (!word.startsWith('--') || word === '--') {
+      rest.push(word);
+      continue;
+    }
+    const equals = word.indexOf('=');
+    const name = word.slice(2, equals === -1 ? undefined : equals);
+    if (SWITCHES.includes(name)) {
+      if (equals !== -1) throw new Error(`--${name} takes no value`);
+      flags[name] = true;
+    } else if (!VALUE_FLAGS.includes(name)) throw new Error(`unknown option --${name}. Options are: ${flagList()}`);
+    else if (equals !== -1) flags[name] = word.slice(equals + 1);
+    else if (index + 1 < argv.length && !argv[index + 1].startsWith('--')) flags[name] = argv[(index += 1)];
+    else throw new Error(`--${name} needs a value`);
   }
   return { rest, flags };
 }
@@ -56,11 +70,15 @@ export function loadProject(target = '.', flags = {}) {
   const sources = [merged.source].flat().filter(Boolean);
   if (!sources.length) throw new Error(`no source: add "source" to ${file}, or pass --source <file>`);
   if (!/^[a-z][a-z0-9-]*$/i.test(merged.attribute)) throw new Error(`"attribute" must be an HTML attribute name, got ${JSON.stringify(merged.attribute)}`);
+  const out = resolve(root, String(merged.out));
+  const paths = sources.map((source) => resolve(root, String(source)));
   return {
     root,
     file: existsSync(file) ? file : null,
-    sources: sources.map((source) => resolve(root, String(source))),
-    out: resolve(root, String(merged.out)),
+    sources: paths,
+    out,
+    // what the manifest records to say whose recordings these are: the sources as seen from the folder
+    owner: paths.map((path) => relative(out, path).split(sep).join('/')).sort(),
     attribute: merged.attribute,
     fixes: merged.say,
     limits: merged.limits ?? {},
