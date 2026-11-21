@@ -9,7 +9,7 @@ import { collectLines } from './lib/collect.mjs';
 import { RECORDER, SKILL, findPython, modelPath, pythonPrints, voicesPath } from './lib/env.mjs';
 import { listFiles, measureFiles, readManifest, removeFiles, writeManifest } from './lib/folder.mjs';
 import { buildManifest } from './lib/manifest.mjs';
-import { planRecording } from './lib/plan.mjs';
+import { MANIFEST_NAME, ownsManifest, planRecording } from './lib/plan.mjs';
 import { loadProject, parseArgs } from './lib/project.mjs';
 import { serve } from './lib/serve.mjs';
 import { verifyVoice } from './lib/verify.mjs';
@@ -37,6 +37,7 @@ options (they override narrate.json)
   --dry-run            record: show what would be recorded and deleted, change nothing
   --force              record: record every line again
   --keep-stale         record: do not delete recordings whose line is gone
+  --adopt              record, manifest: take over a folder whose manifest.json was written for other sources
 `;
 
 process.stdout.on('error', (error) => {
@@ -125,23 +126,39 @@ async function synthesise(project, jobs, flags) {
   return { fresh, failures };
 }
 
+/**
+ * The manifest in the folder, when it was written for this project's sources. A manifest written for other
+ * sources stops the command (two projects must not share a folder) unless --adopt is given; an adopted
+ * manifest is ignored, so none of the files it lists are deleted.
+ */
+function ownManifest(project, flags, { strict = true } = {}) {
+  const found = readManifest(project.out);
+  if (!found || ownsManifest(found, project.owner)) return found;
+  const theirs = Array.isArray(found.sources) ? found.sources.join(', ') : 'unknown sources';
+  const message = `${shown(join(project.out, MANIFEST_NAME))} was written for ${theirs}, not for ${project.owner.join(', ')}`;
+  if (strict && !flags.adopt) throw new Error(`${message}.\n  Use another "out" folder for this project, or pass --adopt to take the folder over (its existing recordings are kept, never deleted).`);
+  note(`narrate: ${message}; ignoring it`);
+  return null;
+}
+
 async function record(rest, flags) {
   const { project, lines } = await loadLines(rest, flags);
-  const previous = readManifest(project.out);
+  const previous = ownManifest(project, flags);
   const plan = planRecording({ lines, files: listFiles(project.out), manifest: previous, settings: project.settings, force: Boolean(flags.force) });
   const stale = flags['keep-stale'] ? [] : plan.remove;
   say(`${lines.length} line(s): ${plan.record.length} to record, ${plan.keep.length} up to date, ${stale.length} stale recording(s) to delete`);
+  if (plan.partial.length) say(`${plan.partial.length} half-written file(s) from an interrupted run: ${plan.partial.join(', ')}`);
   if (flags['dry-run']) {
     for (const line of plan.record) say(`  record  ${line.key}.mp3  ${line.say}`);
-    for (const name of stale) say(`  delete  ${name}`);
+    for (const name of [...stale, ...plan.partial]) say(`  delete  ${name}`);
     return 0;
   }
   mkdirSync(project.out, { recursive: true });
   const { fresh, failures } = plan.record.length ? await synthesise(project, plan.record, flags) : { fresh: new Map(), failures: [] };
   if (failures.length) note(`narrate: ${failures.length} line(s) failed:\n  ${failures.join('\n  ')}`);
   if (failures.length && !fresh.size) return 1; // nothing was recorded: leave the folder as it was
-  removeFiles(project.out, stale);
-  const manifest = buildManifest({ lines, measured: measureFiles(project.out), settings: project.settings, previous, fresh });
+  removeFiles(project.out, [...stale, ...plan.partial.filter((name) => existsSync(join(project.out, name)))]);
+  const manifest = buildManifest({ lines, measured: measureFiles(project.out), settings: project.settings, owner: project.owner, previous, fresh });
   writeManifest(project.out, manifest);
   say(`${fresh.size} recorded, ${stale.length} deleted. ${manifest.count} recording(s) in ${shown(project.out)}: ${kb(manifest.totalBytes)}, ${manifest.totalSeconds.toFixed(1)} s`);
   return failures.length ? 1 : 0;
@@ -149,7 +166,7 @@ async function record(rest, flags) {
 
 async function manifest(rest, flags) {
   const { project, lines } = await loadLines(rest, flags);
-  const built = buildManifest({ lines, measured: measureFiles(project.out), settings: project.settings, previous: readManifest(project.out) });
+  const built = buildManifest({ lines, measured: measureFiles(project.out), settings: project.settings, owner: project.owner, previous: ownManifest(project, flags) });
   writeManifest(project.out, built);
   if (flags.json) say(JSON.stringify(built, null, 2));
   else say(`${shown(join(project.out, 'manifest.json'))}: ${built.count} of ${lines.length} line(s) recorded, ${kb(built.totalBytes)}, ${built.totalSeconds.toFixed(1)} s`);
@@ -158,7 +175,7 @@ async function manifest(rest, flags) {
 
 async function verify(rest, flags) {
   const { project, lines } = await loadLines(rest, flags);
-  const result = verifyVoice({ lines, measured: measureFiles(project.out), manifest: readManifest(project.out), settings: project.settings, limits: project.limits });
+  const result = verifyVoice({ lines, measured: measureFiles(project.out), manifest: ownManifest(project, flags, { strict: false }), settings: project.settings, limits: project.limits });
   if (flags.json) say(JSON.stringify(result, null, 2));
   else {
     for (const error of result.errors) say(`ERROR ${error}`);

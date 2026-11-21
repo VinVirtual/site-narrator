@@ -6,11 +6,12 @@ const round = (value, places) => Number(value.toFixed(places));
 /**
  * lines     [{ key, text, say }]
  * measured  Map of file name -> { bytes, seconds } read from the folder
- * previous  the manifest already in the folder, or null (takes and levels of kept files come from it)
+ * owner     the project's sources as seen from the folder: says whose recordings these are
+ * previous  this project's manifest already in the folder, or null (takes and levels of kept files come from it)
  * fresh     Map of key -> { level } reported by the recorder for lines recorded in this run
  * Lines without a file are left out. The result has no dates, so the same input gives the same file.
  */
-export function buildManifest({ lines, measured, settings, previous = null, fresh = new Map() }) {
+export function buildManifest({ lines, measured, settings, owner = [], previous = null, fresh = new Map() }) {
   const entries = {};
   let totalBytes = 0;
   let totalSeconds = 0;
@@ -34,6 +35,7 @@ export function buildManifest({ lines, measured, settings, previous = null, fres
   }
   return {
     version: 1,
+    sources: owner,
     voice: settings.voice,
     speed: settings.speed,
     lang: settings.lang,

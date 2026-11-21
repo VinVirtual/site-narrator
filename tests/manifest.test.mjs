@@ -94,8 +94,10 @@ test('verify passes a complete folder', () => {
   assert.deepEqual(result, { ok: true, errors: [], warnings: [], totals: { lines: 2, recorded: 2, bytes: 12000, seconds: 3 } });
 });
 
-test('verify reports a missing recording and an orphan as errors', () => {
-  const manifest = buildManifest({ lines, measured, settings });
+test('verify reports a missing recording and an orphan of this project as errors', () => {
+  const gone = { key: 'cccccccc3', text: 'Gone.', say: 'Gone.' };
+  const before = new Map([...measured, ['cccccccc3.mp3', { bytes: 10, seconds: 1 }]]);
+  const manifest = buildManifest({ lines: [...lines, gone], measured: before, settings });
   const folder = new Map([['aaaaaaaa1.mp3', measured.get('aaaaaaaa1.mp3')], ['cccccccc3.mp3', { bytes: 10, seconds: 1 }], ['notes.txt', { bytes: 1, seconds: null }]]);
   const result = verifyVoice({ lines, measured: folder, manifest, settings });
   assert.equal(result.ok, false);
@@ -103,6 +105,19 @@ test('verify reports a missing recording and an orphan as errors', () => {
   assert.match(result.errors.join('\n'), /no recording: bbbbbbbb2\.mp3/);
   assert.match(result.errors.join('\n'), /orphan recording .*cccccccc3\.mp3/);
   assert.match(result.warnings.join('\n'), /not a recording: notes\.txt/);
+});
+
+test('verify only warns about recordings and half-written files the manifest does not list', () => {
+  const manifest = buildManifest({ lines, measured, settings });
+  const folder = new Map([...measured, ['dddddddd4.mp3', { bytes: 10, seconds: 1 }], ['aaaaaaaa1.mp3.part', { bytes: 3, seconds: null }]]);
+  const result = verifyVoice({ lines, measured: folder, manifest, settings });
+  assert.equal(result.ok, true);
+  assert.match(result.warnings.join('\n'), /does not list .*dddddddd4\.mp3/);
+  assert.match(result.warnings.join('\n'), /half-written file .*aaaaaaaa1\.mp3\.part/);
+});
+
+test('the manifest records which sources it was written for', () => {
+  assert.deepEqual(buildManifest({ lines, measured, settings, owner: ['../index.html'] }).sources, ['../index.html']);
 });
 
 test('verify reports unreadable, too short and silent recordings', () => {

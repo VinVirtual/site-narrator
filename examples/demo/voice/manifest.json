@@ -1,5 +1,8 @@
 {
   "version": 1,
+  "sources": [
+    "../index.html"
+  ],
   "voice": "af_heart",
   "speed": 0.96,
   "lang": "en-us",

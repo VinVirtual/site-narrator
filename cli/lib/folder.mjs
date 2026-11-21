@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { mp3Info } from './mp3.mjs';
 import { MANIFEST_NAME } from './plan.mjs';
 
-/** Names of the files in the folder (no sub-folders, no hidden or half-written files). */
+/** Names of the files in the folder (no sub-folders, no hidden files). */
 export function listFiles(dir) {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isFile() && !entry.name.startsWith('.') && !entry.name.endsWith('.part')).map((entry) => entry.name).sort();
+  return readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isFile() && !entry.name.startsWith('.')).map((entry) => entry.name).sort();
 }
 
 /** Map of file name -> { bytes, seconds }. seconds is null for an .mp3 that holds no MP3 frames. */

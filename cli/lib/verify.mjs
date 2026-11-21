@@ -1,5 +1,5 @@
 // Checks a folder of recordings against the lines the site wants spoken.
-import { MANIFEST_NAME, RECORDING_NAME, takeOf } from './plan.mjs';
+import { MANIFEST_NAME, PARTIAL_SUFFIX, RECORDING_NAME, listedFiles, takeOf } from './plan.mjs';
 
 export const DEFAULT_LIMITS = Object.freeze({
   maxTotalBytes: 10 * 1024 * 1024, // a whole site's voice: past this, think about which lines need one
@@ -13,7 +13,7 @@ const kb = (bytes) => `${(bytes / 1024).toFixed(0)} KB`;
 /**
  * lines     [{ key, text, say }] wanted now
  * measured  Map of file name -> { bytes, seconds } (seconds is null when the file is not readable MP3)
- * manifest  the manifest in the folder, or null
+ * manifest  this project's manifest in the folder, or null
  * Returns { ok, errors, warnings, totals }. Errors mean the site would be missing or serving the wrong audio.
  */
 export function verifyVoice({ lines, measured, manifest = null, settings = null, limits = {} }) {
@@ -45,12 +45,15 @@ export function verifyVoice({ lines, measured, manifest = null, settings = null,
     }
   }
 
+  const listed = listedFiles(manifest);
   for (const name of [...measured.keys()].sort()) {
     if (name === MANIFEST_NAME || wanted.has(name)) continue;
-    if (RECORDING_NAME.test(name)) errors.push(`orphan recording (no line says this any more): ${name}`);
+    if (listed.has(name)) errors.push(`orphan recording (no line says this any more; "narrate record" deletes it): ${name}`);
+    else if (name.endsWith(PARTIAL_SUFFIX)) warnings.push(`half-written file from an interrupted run: ${name}`);
+    else if (RECORDING_NAME.test(name)) warnings.push(`recording that this project's ${MANIFEST_NAME} does not list (never deleted by "narrate record"): ${name}`);
     else warnings.push(`file that is not a recording: ${name}`);
   }
-  for (const key of Object.keys(manifest?.lines ?? {})) if (!wanted.has(`${key}.mp3`)) warnings.push(`${MANIFEST_NAME} lists a line that is gone: ${key}`);
+  for (const [key, entry] of Object.entries(manifest?.lines ?? {})) if (!wanted.has(`${key}.mp3`) && !measured.has(entry.file)) warnings.push(`${MANIFEST_NAME} lists a line that is gone: ${key}`);
   if (!manifest) warnings.push(`no ${MANIFEST_NAME}: run "narrate manifest"`);
   if (totalBytes > limit.maxTotalBytes) warnings.push(`total size ${kb(totalBytes)} is over ${kb(limit.maxTotalBytes)}`);
 
