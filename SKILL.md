@@ -41,7 +41,7 @@ Say these to the user before starting if they matter:
    - Around `speed` 0.95 reads more calmly than 1.
 5. **Collect**: `$N/narrate collect <project>`. Read the output. Fix what should not be there (navigation text, duplicates, empty lines), and look at each `said as:` line.
    - Add names, abbreviations and symbols the voice will get wrong to `say` (`"SQL": "sequel"`, `"IMU": "I M U"`). Fixes are case-sensitive and whole-word.
-6. **Record**: `$N/narrate record <project> --dry-run` first, then without it. It records new and changed lines, deletes recordings whose line is gone, and writes `manifest.json`. Keep `--workers` at 2 on a shared machine.
+6. **Record**: `$N/narrate record <project> --dry-run` first, then without it. It records new and changed lines, deletes this project's own recordings whose line is gone (only files its `manifest.json` lists), and writes `manifest.json`. Keep `--workers` at 2 on a shared machine. Give every project its own `out` folder; if `record` says the manifest was written for other sources, stop and ask the user before using `--adopt`.
 7. **Verify**: `$N/narrate verify <project>` must end in `ok`. Fix every `ERROR`. Report the total size to the user.
 8. **Wire the player**: copy `$N/player/player.js` into the site and use `createNarrator({ base })`. See "Player rules" below and the API in `README.md`.
 9. **Test in a browser**: serve the site (`$N/narrate serve <folder>` for a static one), click a Listen control, and confirm `start` and `end` events fire in order and no `missing` event appears. A `missing` event means the page's text and the collected text differ.
@@ -57,7 +57,7 @@ After any text change: steps 5 to 7 again. Add `narrate verify` to the site's bu
 - **Say on the page that the voice is computer-generated**, near the control.
 - Highlight with the `start` event (`index`, plus your own `id`), clear on `done`, `stopped` and `blocked`.
 - For a talking mouth or meter, read `level()` inside `requestAnimationFrame` and handle `null` (keep an idle rhythm).
-- Recordings on another origin need CORS headers and `crossOrigin: 'anonymous'`, or `level()` cannot be used.
+- Recordings on another origin play as normal, and `level()` returns `null` for them. Set `crossOrigin: 'anonymous'` only when that origin sends CORS headers; without the headers the option makes every line `missing`.
 - Respect `prefers-reduced-motion` for whatever moves with the voice.
 - Do not fetch `manifest.json` just to play. Use it for durations or preloading if the design needs them.
 
@@ -70,7 +70,10 @@ After any text change: steps 5 to 7 again. Add `narrate verify` to the site's bu
 | `verify` warns "recorded with other settings" | voice, speed or a `say` fix changed. Run `narrate record` |
 | a word is said wrong | add it to `say`, run `narrate record` (only lines containing it are redone) |
 | `speak()` resolves `'blocked'` | it was not called from a user gesture |
-| `level()` is always `null` | no Web Audio, or cross-origin audio without CORS |
+| `level()` is always `null` | no Web Audio, or the recordings are on another origin and `crossOrigin` is not set |
+| every line is `missing` after setting `crossOrigin` | the other origin does not send CORS headers |
+| `unknown option --...` | a mistyped flag; nothing was run. `narrate help` lists the options |
+| `manifest.json was written for ...` | the `out` folder belongs to another project, or `source` changed. Use another folder, or `--adopt` after asking the user |
 | `no MP3 encoder` | `pip install lameenc` in the Kokoro venv, or install ffmpeg |
 
 ## Honesty
