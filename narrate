@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# site-narrator launcher: narrate <command> ...   (run "narrate help" for the list)
+exec node "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cli/narrate.mjs" "$@"
