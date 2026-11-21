@@ -3,16 +3,35 @@ import { readFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tidy, voiceKey } from '../../player/player.js';
+import { ENTITIES, LEGACY } from './entities.mjs';
 import { compileFixes, sayable } from './text.mjs';
 
-const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', mdash: '—', ndash: '–', hellip: '…', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', copy: '©', deg: '°', times: '×', rarr: '→' };
 const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'wbr', 'source']);
 
-const decodeEntities = (text) =>
-  text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, name) => {
-    if (name[0] !== '#') return ENTITIES[name.toLowerCase()] ?? whole;
-    const code = name[1].toLowerCase() === 'x' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-    return Number.isFinite(code) && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+// Code points 0x80 to 0x9F in a numeric reference mean the Windows-1252 character, as browsers read them.
+const WINDOWS_1252 = { 0x80: '€', 0x82: '‚', 0x83: 'ƒ', 0x84: '„', 0x85: '…', 0x86: '†', 0x87: '‡', 0x88: 'ˆ', 0x89: '‰', 0x8a: 'Š', 0x8b: '‹', 0x8c: 'Œ', 0x8e: 'Ž', 0x91: '‘', 0x92: '’', 0x93: '“', 0x94: '”', 0x95: '•', 0x96: '–', 0x97: '—', 0x98: '˜', 0x99: '™', 0x9a: 'š', 0x9b: '›', 0x9c: 'œ', 0x9e: 'ž', 0x9f: 'Ÿ' };
+const REPLACEMENT = '\ufffd';
+
+function numericReference(code) {
+  if (!Number.isFinite(code) || code === 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return REPLACEMENT;
+  return WINDOWS_1252[code] ?? String.fromCodePoint(code);
+}
+
+/** A name with no semicolon (or an unknown name) still decodes when it starts with one of the older names: `&copy2026`. */
+function legacyPrefix(name) {
+  for (let length = name.length; length > 1; length -= 1) if (LEGACY.has(name.slice(0, length))) return ENTITIES.get(name.slice(0, length)) + name.slice(length);
+  return null;
+}
+
+/** Decodes character references the way a browser does for text: every HTML name, decimal and hex numbers. */
+export const decodeEntities = (text) =>
+  text.replace(/&(?:#[xX]([0-9a-fA-F]+)|#([0-9]+)|([A-Za-z][A-Za-z0-9]*));?/g, (whole, hex, decimal, name) => {
+    if (hex !== undefined) return numericReference(parseInt(hex, 16));
+    if (decimal !== undefined) return numericReference(parseInt(decimal, 10));
+    const closed = whole.endsWith(';');
+    if (closed && ENTITIES.has(name)) return ENTITIES.get(name);
+    const legacy = legacyPrefix(name);
+    return legacy === null ? whole : legacy + (closed ? ';' : '');
   });
 
 /** What `element.textContent` would be for a fragment of simple HTML. */

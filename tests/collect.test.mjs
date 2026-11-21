@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { collectLines, collectSource, linesFromHtml, linesFromJson, linesFromMarkdown, toLines } from '../cli/lib/collect.mjs';
-import { tidy } from '../player/player.js';
+import { collectLines, collectSource, decodeEntities, linesFromHtml, linesFromJson, linesFromMarkdown, toLines } from '../cli/lib/collect.mjs';
+import { ENTITIES, LEGACY } from '../cli/lib/entities.mjs';
+import { tidy, voiceKey } from '../player/player.js';
 
 const fixture = (name) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
@@ -68,4 +69,41 @@ test('toLines keeps the written text and adds the spoken text', () => {
 test('collectLines joins several sources into one list', async () => {
   const lines = await collectLines({ sources: [fixture('lines.json'), fixture('collector.mjs')] });
   assert.deepEqual(lines.map((line) => line.text), ['One.', 'Two.', 'Start', 'Recap one.', 'Recap two.']);
+});
+
+// Each pair is HTML source and the textContent a browser gives for it (checked in Chromium, see README).
+const BROWSER_TEXT = [
+  ['Caf&eacute; cr&egrave;me', 'Café crème'],
+  ['&Eacute;cole &ne; &eacute;cole', 'École ≠ école'],
+  ['na&iuml;ve &amp; fa&ccedil;ade', 'naïve & façade'],
+  ['5&nbsp;&euro; &times; 2 &rarr; 10&thinsp;&euro;', '5\u00a0€ × 2 → 10\u2009€'],
+  ['&alpha;&beta;&Gamma; &hearts; &trade; &frac12;', 'αβΓ ♥ ™ ½'],
+  ['&NotEqualTilde; &fjlig;', '\u2242\u0338 fj'],
+  ['&#233; &#xE9; &#Xe9; &#128512;', 'é é é 😀'],
+  ['&#150; &#x99; &#0; &#xD800; &#x110000;', '– ™ \ufffd \ufffd \ufffd'],
+  ['&copy 2026, &eacutecole, &notit; &amp', '© 2026, école, ¬it; &'],
+  ['AT&T, a & b, &unknown; &; &#;', 'AT&T, a & b, &unknown; &; &#;'],
+  ['&lt;p&gt; &amp;amp; &quot;q&quot; &apos;', '<p> &amp; "q" \''],
+];
+
+test('entities decode to the text a browser shows', () => {
+  for (const [html, text] of BROWSER_TEXT) assert.equal(decodeEntities(html), text, html);
+});
+
+test('a line with entities gets the key the browser computes, and is spoken as the real characters', () => {
+  for (const [html, text] of BROWSER_TEXT) {
+    const [line] = toLines(linesFromHtml(`<p data-narrate>Say ${html} now</p>`));
+    assert.equal(line.key, voiceKey(`Say ${text} now`), html);
+    assert.equal(line.text, tidy(`Say ${text} now`));
+  }
+  assert.equal(toLines(linesFromHtml('<p>Caf&eacute;</p>'))[0].say, 'Café');
+});
+
+test('the entity table is the full HTML list, and names are case-sensitive', () => {
+  assert.equal(ENTITIES.size, 2125);
+  assert.equal(LEGACY.size, 106);
+  assert.equal(ENTITIES.get('Eacute'), 'É');
+  assert.equal(ENTITIES.get('eacute'), 'é');
+  assert.equal(decodeEntities('&EACUTE;'), '&EACUTE;');
+  for (const name of LEGACY) assert.ok(ENTITIES.has(name), name);
 });
