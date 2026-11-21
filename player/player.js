@@ -48,6 +48,19 @@ export function loudness(samples) {
 
 const withSlash = (base) => (base.endsWith('/') ? base : `${base}/`);
 
+/**
+ * True when `url` is served from the page's own origin. Sound from another origin that is routed through
+ * Web Audio without CORS approval plays as silence, so the meter must never be attached to it.
+ */
+export function isSameOrigin(url, page = globalThis.location) {
+  try {
+    if (!page?.href) return !/^([a-z][a-z0-9+.-]*:|\/\/)/i.test(url); // no page address to compare with: only a relative address is safe
+    return new URL(url, page.href).origin === new URL(page.href).origin;
+  } catch {
+    return false;
+  }
+}
+
 function readSetting(storage, key) {
   try {
     return storage?.getItem(key) !== 'off';
@@ -72,8 +85,9 @@ function writeSetting(storage, key, on) {
  *   captions     when the voice is off or a recording is missing, still step through the lines at
  *                reading speed so captions and highlights keep working (default true)
  *   storageKey   localStorage key for the visitor's voice on/off choice (null: do not remember)
- *   crossOrigin  set to 'anonymous' when recordings come from another origin and you use level()
- *   createAudio, AudioContext, storage, setTimeout, clearTimeout: replaceable for tests
+ *   crossOrigin  'anonymous' when the recordings are on another origin that sends CORS headers. Without it,
+ *                recordings from another origin still play, and level() returns null for them.
+ *   createAudio, AudioContext, storage, location, setTimeout, clearTimeout: replaceable for tests
  */
 export function createNarrator(options = {}) {
   const base = withSlash(options.base ?? '/voice/');
@@ -86,6 +100,9 @@ export function createNarrator(options = {}) {
   const ContextClass = options.AudioContext ?? globalThis.AudioContext ?? globalThis.webkitAudioContext;
   const later = options.setTimeout ?? ((fn, ms) => globalThis.setTimeout(fn, ms));
   const cancel = options.clearTimeout ?? ((id) => globalThis.clearTimeout(id));
+
+  // The loudness meter may only touch sound the page is allowed to read: its own origin, or CORS-approved.
+  const canMeter = Boolean(options.crossOrigin) || isSameOrigin(base, options.location ?? globalThis.location);
 
   const listeners = new Map();
   let enabled = storageKey ? readSetting(storage, storageKey) : true;
@@ -122,7 +139,7 @@ export function createNarrator(options = {}) {
   // The loudness meter is built the first time level() is asked for, so pages that never use it never
   // route sound through Web Audio. If it cannot be built, the voice still plays and level() gives null.
   const meter = () => {
-    if (analyser || meterFailed || !audio || !ContextClass) return;
+    if (analyser || meterFailed || !canMeter || !audio || !ContextClass) return;
     try {
       context = new ContextClass();
       analyser = context.createAnalyser();

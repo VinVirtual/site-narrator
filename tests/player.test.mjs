@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createNarrator, loudness, voiceKey } from '../player/player.js';
+import { createNarrator, isSameOrigin, loudness, voiceKey } from '../player/player.js';
 
 /** A stand-in for the browser: audio elements that "play" until the test ends them, and timers run by hand. */
 function fakeBrowser({ missing = [], blocked = false } = {}) {
@@ -284,4 +284,50 @@ test('a listener that throws does not stop the queue', async () => {
   } finally {
     console.error = error;
   }
+});
+
+test('isSameOrigin compares the recordings folder with the page address', () => {
+  const page = { href: 'https://site.example/notes/page.html' };
+  assert.equal(isSameOrigin('/voice/', page), true);
+  assert.equal(isSameOrigin('./voice/', page), true);
+  assert.equal(isSameOrigin('https://site.example/voice/', page), true);
+  assert.equal(isSameOrigin('https://cdn.example/voice/', page), false);
+  assert.equal(isSameOrigin('//cdn.example/voice/', page), false);
+  assert.equal(isSameOrigin('http://site.example/voice/', page), false);
+  assert.equal(isSameOrigin('https://site.example:8443/voice/', page), false);
+  // with no page address (not in a browser) only a relative address counts
+  assert.equal(isSameOrigin('/voice/', null), true);
+  assert.equal(isSameOrigin('https://cdn.example/voice/', null), false);
+  assert.equal(isSameOrigin('//cdn.example/voice/', null), false);
+});
+
+test('recordings on another origin are never routed through Web Audio: they play, and level is null', async () => {
+  const browser = fakeBrowser();
+  const location = { href: 'https://site.example/page.html' };
+  const narrator = createNarrator({ ...browser.options, location, base: 'https://cdn.example/voice/' });
+  narrator.speak(['One.']);
+  await browser.settle();
+  assert.equal(narrator.level(), null);
+  assert.equal(browser.world.contexts, 0);
+  assert.equal(browser.world.audio.paused, false);
+  assert.equal(browser.world.audio.crossOrigin, undefined);
+});
+
+test('with crossOrigin set, another origin is requested with CORS and can be measured', async () => {
+  const browser = fakeBrowser();
+  const location = { href: 'https://site.example/page.html' };
+  const narrator = createNarrator({ ...browser.options, location, base: 'https://cdn.example/voice/', crossOrigin: 'anonymous' });
+  narrator.speak(['One.']);
+  await browser.settle();
+  assert.equal(browser.world.audio.crossOrigin, 'anonymous');
+  assert.equal(narrator.level(), 1);
+  assert.equal(browser.world.contexts, 1);
+});
+
+test('same-origin recordings are measured without any option', async () => {
+  const browser = fakeBrowser();
+  const narrator = createNarrator({ ...browser.options, location: { href: 'https://site.example/a/' }, base: './voice/' });
+  narrator.speak(['One.']);
+  await browser.settle();
+  assert.equal(narrator.level(), 1);
 });
