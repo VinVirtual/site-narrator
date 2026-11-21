@@ -1,5 +1,7 @@
 # site-narrator
 
+[![test](https://github.com/VinVirtual/site-narrator/actions/workflows/test.yml/badge.svg)](https://github.com/VinVirtual/site-narrator/actions/workflows/test.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A pre-recorded voice for any website, made on your own machine, with no paid speech service.
 
 You mark the text a page should be able to read aloud. site-narrator collects those lines, records each one with the free [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model, and names every file by a hash of the line's text. In the browser, a small player hashes the text it wants to say and plays the file with that name. The site serves plain MP3 files: no server code, no API key, nothing generated while a visitor listens.
