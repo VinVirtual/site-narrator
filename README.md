@@ -257,7 +257,7 @@ The player does not read `manifest.json`. It is there for you: to show durations
 
 On one Linux machine (Node 24, Python 3.10, kokoro-onnx 0.6.1; MP3 written with lameenc 1.9.0, and with the ffmpeg from imageio-ffmpeg for the fallback):
 
-- `narrate test`: 88 unit tests for the hash, text clean-up, collectors, recording plan, MP3 length, manifest, verify, project file, local server and the player's queue (with a stand-in for the browser's audio).
+- `narrate test`: 89 unit tests for the hash, text clean-up, collectors, recording plan, MP3 length, manifest, verify, project file, local server, the player's queue (with a stand-in for the browser's audio), and that Python probes never import modules from the current folder.
 - The demo was recorded for real (lameenc) and checked with `narrate verify`. Each of its MP3 files was decoded in headless Chromium: the decoded lengths match the manifest, and the signal is not silent. The ffmpeg encoder, stale-file deletion and re-recording after a voice change were run on a second small project.
 - The demo page was opened in headless Chromium from `narrate serve`. Pressing "Listen to all" played the five recordings in order with start and end events at the expected times, the highlight followed, and `level()` returned changing values. A missing recording, `stop()` and the voice-off setting behaved as described above.
 

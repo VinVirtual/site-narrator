@@ -10,7 +10,8 @@ export const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const SKILL = resolve(CLI, '..');
 export const RECORDER = join(CLI, 'record.py');
 
-const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+// Helpers run from the skill's own folder, never the current one.
+const run = (cmd, args) => execFileSync(cmd, args, { cwd: SKILL, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const onPath = (name) => {
   try {
     return run(process.platform === 'win32' ? 'where' : 'which', [name]).split('\n')[0];
@@ -31,10 +32,11 @@ export function findPython(env = process.env) {
   return onPath('python3') || onPath('python') || 'python3';
 }
 
-/** Runs a line of Python and returns what it printed, or null when it fails. */
+/** Runs a line of Python and returns what it printed, or null when it fails. -I keeps the current folder,
+    PYTHONPATH and the user's site-packages off the import path, so a planted module there cannot run. */
 export function pythonPrints(code, python = findPython()) {
   try {
-    return run(python, ['-c', code]);
+    return run(python, ['-I', '-c', code]);
   } catch {
     return null;
   }
